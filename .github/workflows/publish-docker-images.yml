@@ -16,7 +16,7 @@ name: Publish tagged images to Docker Hub
 
 jobs:
   docker:
-    runs-on: docker
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
@@ -66,8 +66,9 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker meta
         id: meta
@@ -87,19 +88,8 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
+          platforms: linux/amd64
+          tags: ghcr.io/lesuisse/meilisearch/${{ steps.meta.outputs.tags }}
           build-args: |
             COMMIT_SHA=${{ github.sha }}
             COMMIT_DATE=${{ steps.build-metadata.outputs.date }}
-
-      # /!\ Don't touch this without checking with Cloud team
-      - name: Send CI information to Cloud team
-        # Do not send if nightly build (i.e. 'schedule' or 'workflow_dispatch' event)
-        if: github.event_name == 'push'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.MEILI_BOT_GH_PAT }}
-          repository: meilisearch/meilisearch-cloud
-          event-type: cloud-docker-build
-          client-payload: '{ "meilisearch_version": "${{ github.ref_name }}", "stable": "${{ steps.check-tag-format.outputs.stable }}" }'
